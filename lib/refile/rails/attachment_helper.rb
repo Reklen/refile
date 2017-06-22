@@ -8,11 +8,17 @@ module Refile
         self.multipart = true
         @template.attachment_field(@object_name, method, objectify_options(options))
       end
+    end
 
-      # @see AttachmentHelper#attachment_cache_field
-      def attachment_cache_field(method, options = {})
-        self.multipart = true
-        @template.attachment_cache_field(@object_name, method, objectify_options(options))
+    module FormTagHelper
+      def attachment_field_tag(object, object_name, method, options = {})
+        build_attachment_options(object, method, options)
+
+        hidden_field_tag(method, object.send("#{method}_data").try(:to_json),
+          multiple: options[:multiple],
+          id: nil,
+          data: { reference: options[:data][:reference] }
+        ) + file_field_tag(object_name, options)
       end
     end
 
@@ -73,6 +79,26 @@ module Refile
     # @option options [Boolean] presign     If set to true, adds the appropriate data attributes for presigned uploads with refile.js.
     # @return [ActiveSupport::SafeBuffer]   The generated form field
     def attachment_field(object_name, method, object:, **options)
+      build_attachment_options(object, method, options)
+
+      hidden_field(object_name, method,
+        multiple: options[:multiple],
+        value: object.send("#{method}_data").try(:to_json),
+        object: object,
+        id: nil,
+        data: { reference: options[:data][:reference] }
+      ) + file_field(object_name, method, options)
+    end
+
+    # Fill up attachment options to be passed to the input field.
+    #
+    # @param object                         The object to generate a field for, required for direct/presigned uploads to work.
+    # @param method                         The name of the field
+    # @param [Hash] options
+    # @option options [Boolean] direct      If set to true, adds the appropriate data attributes for direct uploads with refile.js.
+    # @option options [Boolean] presign     If set to true, adds the appropriate data attributes for presigned uploads with refile.js.
+    # @return [Hash]   The generated form field
+    def build_attachment_options(object, method, options)
       options[:data] ||= {}
 
       definition = object.send(:"#{method}_attachment_definition")
@@ -89,33 +115,7 @@ module Refile
       end
 
       options[:data][:reference] = SecureRandom.hex
-      options[:include_hidden] = false
-
-      attachment_cache_field(object_name, method, object: object, **options) + file_field(object_name, method, options)
-    end
-
-    # Generates a hidden form field which tracks the id of the file in the cache
-    # before it is permanently stored.
-    #
-    # @param object_name                    The name of the object to generate a field for
-    # @param method                         The name of the field
-    # @param [Hash] options
-    # @option options [Object] object       Set by the form builder
-    # @return [ActiveSupport::SafeBuffer]   The generated hidden form field
-    def attachment_cache_field(object_name, method, object:, **options)
-      options[:data] ||= {}
-      options[:data][:reference] ||= SecureRandom.hex
-
-      hidden_options = {
-        multiple: options[:multiple],
-        value: object.send("#{method}_data").try(:to_json),
-        object: object,
-        id: nil,
-        data: { reference: options[:data][:reference] }
-      }
-      hidden_options.merge!(index: options[:index]) if options.key?(:index)
-
-      hidden_field(object_name, method, hidden_options)
+      options
     end
   end
 end
