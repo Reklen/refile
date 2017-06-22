@@ -5,8 +5,9 @@ require "action_view"
 
 describe Refile::AttachmentHelper do
   include Refile::AttachmentHelper
+  include Refile::AttachmentHelper::FormTagHelper
   include ActionView::Helpers::AssetTagHelper
-  include ActionView::Helpers::FormHelper
+  include ActionView::Helpers::FormTagHelper
 
   let(:klass) do
     Class.new(ActiveRecord::Base) do
@@ -38,41 +39,12 @@ describe Refile::AttachmentHelper do
     end
   end
 
-  describe "#attachment_field" do
-    context "with index given" do
-      let(:html) { Capybara.string(attachment_field("post", :document, object: klass.new, index: 0)) }
+  describe "#attachment_field_tag" do
+    let(:field) { attachment_field_tag(klass.new(document_id: "xxx"), "klass", "document") }
 
-      it "generates file and hidden inputs with identical names" do
-        field_name = "post[0][document]"
-        expect(html).to have_field(field_name, type: "file")
-        expect(html).to have_selector(:css, "input[name='#{field_name}'][type=hidden]", visible: false, count: 1)
-      end
-    end
-  end
-
-  describe "#attachment_cache_field" do
-    context "with index given" do
-      let(:html) { Capybara.string(attachment_cache_field("post", :document, object: klass.new, index: 0)) }
-
-      it "generates hidden input with given index" do
-        expect(html).to have_selector(:css, "input[name='post[0][document]'][type=hidden]", visible: false)
-      end
-    end
-
-    context "with reference given" do
-      let(:html) { Capybara.string(attachment_cache_field("post", :document, object: klass.new, data: { reference: "xyz" })) }
-
-      it "generates hidden input with given reference" do
-        expect(html).to have_selector(:css, "input[data-reference=xyz]", visible: false)
-      end
-    end
-
-    context "without reference given" do
-      let(:html) { Capybara.string(attachment_cache_field("post", :document, object: klass.new)) }
-
-      it "generates hidden input with a random reference" do
-        expect(html).to have_selector(:css, "input[data-reference]", visible: false)
-      end
+    it "builds with name" do
+      name = field[/name="(\S+)"/, 1]
+      expect(name).to eq "document"
     end
   end
 end
